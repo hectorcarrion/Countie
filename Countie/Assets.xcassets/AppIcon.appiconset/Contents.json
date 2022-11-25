@@ -1,6 +1,7 @@
 {
   "images" : [
     {
+      "filename" : "40.png",
       "idiom" : "universal",
       "platform" : "ios",
       "scale" : "2x",
@@ -13,6 +14,7 @@
       "size" : "20x20"
     },
     {
+      "filename" : "58.png",
       "idiom" : "universal",
       "platform" : "ios",
       "scale" : "2x",
@@ -37,6 +39,7 @@
       "size" : "38x38"
     },
     {
+      "filename" : "80.png",
       "idiom" : "universal",
       "platform" : "ios",
       "scale" : "2x",
@@ -49,12 +52,14 @@
       "size" : "40x40"
     },
     {
+      "filename" : "120.png",
       "idiom" : "universal",
       "platform" : "ios",
       "scale" : "2x",
       "size" : "60x60"
     },
     {
+      "filename" : "180.png",
       "idiom" : "universal",
       "platform" : "ios",
       "scale" : "3x",
