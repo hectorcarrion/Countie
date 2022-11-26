@@ -58,14 +58,15 @@ struct Provider: TimelineProvider {
             let startDate = Calendar.current.startOfDay(for: currentDate)
             let totalDays = Calendar.current.dateComponents([.day], from: startDate, to: startEventDate).day!
             let setDate = UserDefaults(suiteName:"group.com.hectorcarrion.Countie")?.object(forKey: "DAYSET_KEY") ?? Date()
+            let startSetDate = Calendar.current.startOfDay(for: setDate as! Date)
             
             //let ratio: Float = Float(100 / totalDays) // div by zero
             
             // Generate a timeline consisting of seven entries a day apart, starting from the current date.
             for dayOffset in 0 ..< 7 {
-                let entryDate = Calendar.current.date(byAdding: .day, value: dayOffset, to: currentDate)!
+                let entryDate = Calendar.current.date(byAdding: .day, value: dayOffset, to: startDate)!
                 let trigger = Calendar.current.startOfDay(for: entryDate)
-                let daysElapsed = Calendar.current.dateComponents([.day], from: setDate as! Date, to: trigger).day!
+                let daysElapsed = Calendar.current.dateComponents([.day], from: startSetDate, to: trigger).day!
                 let daysRemaining = Calendar.current.dateComponents([.day], from: trigger, to: startEventDate).day!
                 
                 let entry = SimpleEntry(date: trigger, daysElapsed: daysElapsed, daysRemaining: daysRemaining, totalDays: totalDays, eventName: eventName as! String)
@@ -118,17 +119,26 @@ struct CountieWidgetEntryView : View {
                             VStack(alignment: .leading, spacing: 2) {
                                 if entry.daysRemaining == 1 {
                                     Text("day until")
+                                    Text(entry.eventName)
+                                        .fontWeight(.semibold)
                                 } else if entry.daysRemaining >= 1 {
                                     Text("days until")
+                                    Text(entry.eventName)
+                                        .fontWeight(.semibold)
                                 } else if entry.daysRemaining == -1 {
                                     Text("day since")
+                                    Text(entry.eventName)
+                                        .fontWeight(.semibold)
                                 } else if entry.daysRemaining == 0 {
-                                    Text("today is")
+                                    Text(entry.eventName)
+                                        .fontWeight(.semibold)
+                                    Text("is today!")
                                 } else {
                                     Text("days since")
+                                    Text(entry.eventName)
+                                        .fontWeight(.semibold)
                                 }
-                                Text(entry.eventName)
-                                    .fontWeight(.semibold)
+                                
                             }
                         }
                         if entry.daysRemaining < 0 {
@@ -169,7 +179,7 @@ struct CountieWidget: Widget {
 
 struct CountieWidget_Previews: PreviewProvider {
     static var previews: some View {
-        CountieWidgetEntryView(entry: SimpleEntry(date: Date(), daysElapsed: 50, daysRemaining: -2, totalDays: 0, eventName: "Disney! ✈️"))
+        CountieWidgetEntryView(entry: SimpleEntry(date: Date(), daysElapsed: 1, daysRemaining: 9, totalDays: 10, eventName: "Disney ✈️"))
             .previewContext(WidgetPreviewContext(family: .accessoryRectangular))
             .previewDisplayName("Rectangular")
     }
