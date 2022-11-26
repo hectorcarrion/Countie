@@ -1,4 +1,4 @@
 # Countie
-Simple lockscreen countdown widget - made in a single night.
+Simple lockscreen countdown widget - made in a single night because the other options were uggly and not free (expect lots of duct-tape 😅).
 
 ![Screenshot](https://github.com/hectorcarrion/Countie/blob/main/Screenshot%202022-11-24%20at%209.52.04%20PM.png "Screenshot")
