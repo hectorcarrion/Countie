@@ -179,7 +179,7 @@ struct CountieWidget: Widget {
 
 struct CountieWidget_Previews: PreviewProvider {
     static var previews: some View {
-        CountieWidgetEntryView(entry: SimpleEntry(date: Date(), daysElapsed: 1, daysRemaining: 9, totalDays: 10, eventName: "Disney ✈️"))
+        CountieWidgetEntryView(entry: SimpleEntry(date: Date(), daysElapsed: 10, daysRemaining: -7, totalDays: 10, eventName: "FIFA Started ⚽️"))
             .previewContext(WidgetPreviewContext(family: .accessoryRectangular))
             .previewDisplayName("Rectangular")
     }
