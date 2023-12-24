@@ -24,6 +24,9 @@ struct EventListView: View {
             .navigationTitle("Counties")
             .navigationBarItems(trailing: addButton)
             .onAppear(perform: eventsManager.loadEvents)
+            .refreshable {
+                eventsManager.loadEvents()
+            }
             .sheet(isPresented: $showingAddEventView) {
                 EventEditView()
             }
@@ -31,6 +34,7 @@ struct EventListView: View {
                 EventEditView(event: event)
             }
         }
+        .navigationViewStyle(StackNavigationViewStyle())
     }
 
     private var listContent: some View {
