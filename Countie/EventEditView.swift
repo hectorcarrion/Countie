@@ -15,24 +15,27 @@ struct EventEditView: View {
 
     var body: some View {
         NavigationView {
-            VStack {
-                Form {
+            Form {
+                Section(header: Text("Event Name and Date").foregroundColor(.gray)) {
                     TextField("Name...", text: $name)
                     DatePicker("Enter event date", selection: $date, displayedComponents: [.date])
                         .datePickerStyle(GraphicalDatePickerStyle())
-                        .onChange(of: date) {
-                            hideKeyboard()
-                        }
                 }
-                .navigationTitle(event == nil ? "New Countie 🤩" : "Edit Countie ✏️")
-                .navigationBarItems(leading: cancelButton, trailing: saveButton)
-                .onAppear(perform: setup)
-                
-                Text("Tip: circular widgets adopt the first letter (or emoji) in their name as their label")
-                    .foregroundColor(.gray)
-                    .multilineTextAlignment(.center)
+                Section(footer: tipFooter) {
+                    // Include any other form content here
+                }
             }
+            .navigationTitle(event == nil ? "New Countie 🤩" : "Edit Countie ✏️")
+            .navigationBarItems(leading: cancelButton, trailing: saveButton)
+            .onAppear(perform: setup)
         }
+    }
+
+    private var tipFooter: some View {
+        Text("Tip: circular widgets adopt the first letter (or emoji) in their name as their label")
+            .font(.body)
+            .foregroundColor(.gray)
+            .multilineTextAlignment(.center)
     }
 
     private var cancelButton: some View {

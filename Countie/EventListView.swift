@@ -8,19 +8,15 @@
 import SwiftUI
 
 struct EventListView: View {
-    @State private var showingEventEditView = false
+    @State private var showingAddEventView = false
+    @State private var editingEvent: Event?
     @ObservedObject private var eventsManager = EventsManager.shared
 
     var body: some View {
         NavigationView {
             Group {
                 if eventsManager.events.isEmpty {
-                    Text("Hello 👋🏼 - tap the '+' button to add a new Countie.")
-                        .padding()
-                        .multilineTextAlignment(.center)
-                    Text("Tip: you can add ✈️🎄🎂 to their names!")
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
+                    emptyStateView
                 } else {
                     listContent
                 }
@@ -28,23 +24,29 @@ struct EventListView: View {
             .navigationTitle("Counties")
             .navigationBarItems(trailing: addButton)
             .onAppear(perform: eventsManager.loadEvents)
+            .sheet(isPresented: $showingAddEventView) {
+                EventEditView()
+            }
+            .sheet(item: $editingEvent) { event in
+                EventEditView(event: event)
+            }
         }
     }
 
     private var listContent: some View {
-        VStack {
-            List {
-                ForEach(eventsManager.events) { event in
-                    NavigationLink(destination: EventEditView(event: event)) {
-                        HStack {
-                            Text(event.name)
-                            Spacer()
-                            Text(event.date, formatter: Self.dateFormatter)
-                        }
+        List {
+            ForEach(eventsManager.events) { event in
+                Button(action: {
+                    self.editingEvent = event
+                }) {
+                    HStack {
+                        Text(event.name)
+                        Spacer()
+                        Text(event.date, formatter: Self.dateFormatter)
                     }
                 }
-                .onDelete(perform: deleteEvent)
             }
+            .onDelete(perform: deleteEvent)
             if eventsManager.events.count > 0 && eventsManager.events.count < 5 {
                 Text("Tip: to add widgets to your lock screen, tap and hold it, then press 'Customize'")
                     .foregroundColor(.gray)
@@ -61,13 +63,10 @@ struct EventListView: View {
     }
 
     private var addButton: some View {
-        Button(action: { showingEventEditView = true }) {
+        Button(action: { showingAddEventView = true }) {
             Image(systemName: "plus.circle.fill")
         }
         .disabled(eventsManager.events.count >= eventsManager.maxWidgets)
-        .sheet(isPresented: $showingEventEditView) {
-            EventEditView()
-        }
     }
 
     private func deleteEvent(at offsets: IndexSet) {
@@ -76,11 +75,29 @@ struct EventListView: View {
             eventsManager.delete(event: event)
         }
     }
-    
+
     private static var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         return formatter
+    }
+
+    private var emptyStateView: some View {
+        VStack(spacing: 20) {
+            Text("Hello 👋🏼")
+                .font(.title)
+                .padding(.top, 50)
+            
+            Text("Tap the '+' button to add a new Countie")
+                .padding(.horizontal)
+                .multilineTextAlignment(.center)
+            
+            Text("Tip: you can add ✈️🎄🎂 to their names!")
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+            
+            Spacer()
+        }
     }
 }
 
