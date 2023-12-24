@@ -10,178 +10,372 @@ import SwiftUI
 import Foundation
 
 struct Provider: TimelineProvider {
+    let userDefaultsSuiteName = "group.com.hectorcarrion.Countie"
+    let widgetIdentifier: Int
+    
+    init(widgetIdentifier: Int) {
+        self.widgetIdentifier = widgetIdentifier
+    }
+
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), daysElapsed: 1, daysRemaining: 42, totalDays: 2, eventName: "Event")
+        SimpleEntry(date: Date(), eventName: "Event", configuration: nil)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
-        
-        if (UserDefaults(suiteName:"group.com.hectorcarrion.Countie")!.object(forKey: "EVENT_KEY") != nil) && (UserDefaults(suiteName:"group.com.hectorcarrion.Countie")!.object(forKey: "EVDAY_KEY") != nil) && (UserDefaults(suiteName:"group.com.hectorcarrion.Countie")!.object(forKey: "DAYSET_KEY") != nil) {
-            
-            
-            let currentDate = Date()
-            let eventName = UserDefaults(suiteName:"group.com.hectorcarrion.Countie")?.object(forKey: "EVENT_KEY") ?? "err load"
-            let eventDate = UserDefaults(suiteName:"group.com.hectorcarrion.Countie")?.object(forKey: "EVDAY_KEY") ?? Date()
-            
-            let today = UserDefaults(suiteName:"group.com.hectorcarrion.Countie")!.object(forKey: "EVENT_DAY") ?? false
-            
-            if today as! Bool == true {
-                let entry = SimpleEntry(date: Date(), daysElapsed: 50, daysRemaining: 0, totalDays: 0, eventName: eventName as! String)
-                completion(entry)
-            } else {
-                let startDate = Calendar.current.startOfDay(for: currentDate)
-                let totalDays = Calendar.current.dateComponents([.day], from: startDate, to: eventDate as! Date).day!
-                let setDate = UserDefaults(suiteName:"group.com.hectorcarrion.Countie")?.object(forKey: "DAYSET_KEY") ?? Date()
-                let daysElapsed = Calendar.current.dateComponents([.day], from: setDate as! Date, to: Date() ).day!
-                
-                let entry = SimpleEntry(date: currentDate, daysElapsed: daysElapsed, daysRemaining: totalDays, totalDays: totalDays, eventName: eventName as! String)
-                completion(entry)
-            }
-            
-        } else {
-            let entry = SimpleEntry(date: Date(), daysElapsed: 1, daysRemaining: 14, totalDays: 1, eventName: "not onboarded")
-            completion(entry)
-        }
-        
+        let entry = createEntry()
+        completion(entry)
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
         var entries: [SimpleEntry] = []
-        let currentDate = Date()
+        
+        let entry = createEntry()
+        let refreshDate = Calendar.current.date(byAdding: .minute, value: 30, to: entry.date)!
+        entries.append(entry)
+        
+        let timeline = Timeline(entries: entries, policy: .after(refreshDate))
+        completion(timeline)
+    }
     
-        if (UserDefaults(suiteName:"group.com.hectorcarrion.Countie")!.object(forKey: "EVENT_KEY") != nil) && (UserDefaults(suiteName:"group.com.hectorcarrion.Countie")!.object(forKey: "EVDAY_KEY") != nil) && (UserDefaults(suiteName:"group.com.hectorcarrion.Countie")!.object(forKey: "DAYSET_KEY") != nil) {
-            
-            let eventName = UserDefaults(suiteName:"group.com.hectorcarrion.Countie")?.object(forKey: "EVENT_KEY") ?? "err load"
-            let eventDate = UserDefaults(suiteName:"group.com.hectorcarrion.Countie")?.object(forKey: "EVDAY_KEY") ?? Date()
-            let startEventDate = Calendar.current.startOfDay(for: eventDate as! Date)
-            
-            let startDate = Calendar.current.startOfDay(for: currentDate)
-            let totalDays = Calendar.current.dateComponents([.day], from: startDate, to: startEventDate).day!
-            let setDate = UserDefaults(suiteName:"group.com.hectorcarrion.Countie")?.object(forKey: "DAYSET_KEY") ?? Date()
-            let startSetDate = Calendar.current.startOfDay(for: setDate as! Date)
-            
-            //let ratio: Float = Float(100 / totalDays) // div by zero
-            
-            // Generate a timeline consisting of seven entries a day apart, starting from the current date.
-            for dayOffset in 0 ..< 7 {
-                let entryDate = Calendar.current.date(byAdding: .day, value: dayOffset, to: startDate)!
-                let trigger = Calendar.current.startOfDay(for: entryDate)
-                let daysElapsed = Calendar.current.dateComponents([.day], from: startSetDate, to: trigger).day!
-                let daysRemaining = Calendar.current.dateComponents([.day], from: trigger, to: startEventDate).day!
-                
-                let entry = SimpleEntry(date: trigger, daysElapsed: daysElapsed, daysRemaining: daysRemaining, totalDays: totalDays, eventName: eventName as! String)
-                entries.append(entry)
-            }
-            let timeline = Timeline(entries: entries, policy: .atEnd)
-            completion(timeline)
-        } else {
-            entries.append(SimpleEntry(date: currentDate, daysElapsed: 1, daysRemaining: 14, totalDays: 2, eventName: "not onboarded"))
-            let upDate = Calendar.current.date(byAdding: .second, value: 30, to: currentDate)!
-            let timeline = Timeline(entries: entries, policy: .after(upDate))
-            completion(timeline)
+    private func createEntry() -> SimpleEntry {
+        let eventKey = "EVENT_KEY_\(widgetIdentifier)"
+        let eventDateKey = "EVDAY_KEY_\(widgetIdentifier)"
+        let daySetKey = "DAYSET_KEY_\(widgetIdentifier)"
+        
+        guard let userDefaults = UserDefaults(suiteName: userDefaultsSuiteName),
+              let eventName = userDefaults.string(forKey: eventKey),
+              let eventDate = userDefaults.object(forKey: eventDateKey) as? Date,
+              let setDate = userDefaults.object(forKey: daySetKey) as? Date else {
+            // Return an entry indicating that the widget is not configured.
+            return SimpleEntry(date: Date(), eventName: "not onboarded", configuration: nil)
         }
+        
+        let currentDate = Date()
+        let startOfCurrentDate = Calendar.current.startOfDay(for: currentDate)
+        let eventDayStart = Calendar.current.startOfDay(for: eventDate)
+        let setDateStart = Calendar.current.startOfDay(for: setDate)
+        let totalDays = Calendar.current.dateComponents([.day], from: setDateStart, to: eventDayStart).day ?? 0
+        let daysElapsed = Calendar.current.dateComponents([.day], from: setDateStart, to: startOfCurrentDate).day ?? 0
+
+        let configuration = EventConfiguration(daysElapsed: daysElapsed, daysRemaining: totalDays - daysElapsed, totalDays: totalDays)
+
+        return SimpleEntry(date: currentDate, eventName: eventName, configuration: configuration)
     }
 }
 
 struct SimpleEntry: TimelineEntry {
-    // custom date object (ICCV date)
     let date: Date
+    let eventName: String
+    let configuration: EventConfiguration?
+}
+
+struct EventConfiguration {
     let daysElapsed: Int
     let daysRemaining: Int
     let totalDays: Int
-    let eventName: String
+    
+    var progress: Float {
+        guard totalDays > 0 else { return 1.0 }
+
+        let progressValue = Float(daysElapsed) / Float(totalDays)
+        return min(progressValue, 1.0) // Ensures progress does not exceed 1
+    }
+    
+    var isEventToday: Bool {
+        daysRemaining == 0
+    }
+    
+    var isPreEvent: Bool {
+        daysRemaining > 0
+    }
+    
+    var isPostEvent: Bool {
+        daysRemaining < 0
+    }
+    
+    var dayDescription: String {
+        switch daysRemaining {
+        case 1:
+            return "day until"
+        case 0:
+            return "is today!"
+        case -1:
+            return "day since"
+        default:
+            return isPreEvent ? "days until" : "days since"
+        }
+    }
 }
 
 struct CountieWidgetEntryView : View {
     @Environment(\.widgetFamily) var widgetFamily
     var entry: Provider.Entry
-    var body: some View {
-        if entry.eventName == "not onboarded" {
-            Text("Open Countie to set-up")
-                .multilineTextAlignment(.center)
-        } else {
-            switch widgetFamily {
-                case .accessoryRectangular:
 
-                    // Interesting choice here between leading and center
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(alignment: .center) {
-                            if entry.daysRemaining >= 1 || entry.daysRemaining < 0 {
-                                Text(String(abs(entry.daysRemaining)))
-                                    .font(.title)
-                            } else if entry.daysRemaining == 0 {
-    //                            Image(systemName: "checkmark.circle.fill")
-    //                                .font(.custom("check", size: 30))
-                                Text("🎉")
-                                    .font(.title)
-                            }
-                            //Spacer()
-                            VStack(alignment: .leading, spacing: 2) {
-                                if entry.daysRemaining == 1 {
-                                    Text("day until")
-                                    Text(entry.eventName)
-                                        .fontWeight(.semibold)
-                                } else if entry.daysRemaining >= 1 {
-                                    Text("days until")
-                                    Text(entry.eventName)
-                                        .fontWeight(.semibold)
-                                } else if entry.daysRemaining == -1 {
-                                    Text("day since")
-                                    Text(entry.eventName)
-                                        .fontWeight(.semibold)
-                                } else if entry.daysRemaining == 0 {
-                                    Text(entry.eventName)
-                                        .fontWeight(.semibold)
-                                    Text("is today!")
-                                } else {
-                                    Text("days since")
-                                    Text(entry.eventName)
-                                        .fontWeight(.semibold)
-                                }
-                                
-                            }
-                        }
-                        if entry.daysRemaining < 0 {
-                            Gauge(value: 1.0) {}
-                                .gaugeStyle(.accessoryLinearCapacity)
-                                .opacity(1)
-                        } else if entry.totalDays == 0 {
-                            Gauge(value: 1.0) {}
-                                .gaugeStyle(.accessoryLinearCapacity)
-                                .opacity(1)
-                        } else {
-                            let ratio: Float = Float(100/entry.totalDays)
-                            Gauge(value: (ratio * Float(entry.daysElapsed))/100) {}
-                                .gaugeStyle(.accessoryLinearCapacity)
-                                .opacity(1)
-                        }
-                    }
-                    
-                default:
-                    Text("Not implemented")
+    var body: some View {
+        if let configuration = entry.configuration {
+            configuredBody(configuration: configuration)
+                .containerBackground(for: .widget) {
+                    Color(UIColor.systemBackground) // or any other color you want for the background
+                }
+        } else {
+            Text("Setup in Countie")
+                .multilineTextAlignment(.center)
+                .containerBackground(for: .widget) {
+                    Color(UIColor.systemBackground) // or any other color you want for the background
+                }
+        }
+    }
+
+    @ViewBuilder
+    private func configuredBody(configuration: EventConfiguration) -> some View {
+        switch widgetFamily {
+        case .accessoryRectangular:
+            rectangularFamilyView(configuration: configuration)
+                .containerBackground(for: .widget) {
+                    Color(UIColor.systemBackground) // or any other color you want for the background
+                }
+        case .accessoryCircular:
+            circularFamilyView(configuration: configuration)
+                .containerBackground(for: .widget) {
+                    Color(UIColor.systemBackground) // or any other color you want for the background
+                }
+        case .accessoryInline:
+            inlineFamilyView(configuration: configuration)
+                .containerBackground(for: .widget) {
+                    Color(UIColor.systemBackground) // or any other color you want for the background
+                }
+        default:
+            Text("Not implemented")
+        }
+    }
+
+    @ViewBuilder
+    private func rectangularFamilyView(configuration: EventConfiguration) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            headerView(configuration: configuration)
+                .containerBackground(for: .widget) {
+                    Color(UIColor.systemBackground) // or any other color you want for the background
+                }
+            gaugeView(configuration: configuration)
+                .containerBackground(for: .widget) {
+                    Color(UIColor.systemBackground) // or any other color you want for the background
+                }
+        }
+    }
+    
+    private func circularFamilyView(configuration: EventConfiguration) -> some View {
+        OpenGauge(value: configuration.progress, label: {
+            if configuration.isEventToday {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.footnote)
+            } else {
+                Text(String(entry.eventName.prefix(1)))
+                    .font(.footnote)
+            }
+        }, centerView: {
+            if configuration.isEventToday {
+                Text(String(entry.eventName.prefix(1)))
+                    .font(.title)
+            } else {
+                if configuration.isPostEvent {
+                    Text("-" + String(abs(configuration.daysRemaining)))
+                        .font(.title)
+                } else {
+                    Text(String(abs(configuration.daysRemaining)))
+                        .font(.title)
+                }
+            }
+        }).containerBackground(for: .widget) {
+            Color(UIColor.systemBackground) // or any other color you want for the background
+        }
+    }
+    
+    private func inlineFamilyView(configuration: EventConfiguration) -> some View {
+        if configuration.isEventToday {
+            Text(entry.eventName + " is today!")
+        } else if configuration.isPreEvent {
+            Text(entry.eventName + " in " + String(configuration.daysRemaining) + " days")
+        } else {
+            Text(String(configuration.daysRemaining * -1) + " days since " + entry.eventName)
+        }
+    }
+    
+    private func headerView(configuration: EventConfiguration) -> some View {
+        HStack(alignment: .center) {
+            dayCountView(configuration: configuration)
+                .containerBackground(for: .widget) {
+                    Color(UIColor.systemBackground) // or any other color you want for the background
+                }
+            eventDescriptionView(configuration: configuration)
+                .containerBackground(for: .widget) {
+                    Color(UIColor.systemBackground) // or any other color you want for the background
+                }
+        }
+    }
+    
+    private func dayCountView(configuration: EventConfiguration) -> some View {
+        if configuration.isEventToday {
+            Text(Image(systemName: "checkmark.circle.fill"))
+                .font(.title)
+        } else {
+            Text(String(abs(configuration.daysRemaining)))
+                .font(.title)
+        }
+    }
+    
+    private func eventDescriptionView(configuration: EventConfiguration) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            if configuration.isEventToday {
+                Text(entry.eventName)
+                    .fontWeight(.semibold)
+                Text(configuration.dayDescription)
+            } else {
+                Text(configuration.dayDescription)
+                Text(entry.eventName)
+                    .fontWeight(.semibold)
             }
         }
     }
+    
+    private func gaugeView(configuration: EventConfiguration) -> some View {
+        Gauge(value: configuration.progress) {}
+            .gaugeStyle(.accessoryLinearCapacity)
+            .opacity(1)
+            .containerBackground(for: .widget) {
+                Color(UIColor.systemBackground) // or any other color you want for the background
+            }
+    }
 }
 
-struct CountieWidget: Widget {
-    let kind: String = "CountieWidget"
+
+struct CountieWidget1: Widget {
+    let kind: String = "CountieWidget1"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: Provider()) { entry in
+        StaticConfiguration(kind: kind, provider: Provider(widgetIdentifier: 1)) { entry in
             CountieWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("Countie")
-        .description("Select your countdown or countup widget.")
-        .supportedFamilies([.accessoryRectangular])
+        .configurationDisplayName("Countie 1")
+        .description("First Countie on your list, open the app to edit.")
+        .supportedFamilies([.accessoryRectangular, .accessoryCircular, .accessoryInline])
+    }
+}
+
+struct CountieWidget2: Widget {
+    let kind: String = "CountieWidget2"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: Provider(widgetIdentifier: 2)) { entry in
+            CountieWidgetEntryView(entry: entry)
+        }
+        .configurationDisplayName("Countie 2")
+        .description("Second Countie on your list, open the app to edit.")
+        .supportedFamilies([.accessoryRectangular, .accessoryCircular, .accessoryInline])
+    }
+}
+
+struct CountieWidget3: Widget {
+    let kind: String = "CountieWidget3"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: Provider(widgetIdentifier: 3)) { entry in
+            CountieWidgetEntryView(entry: entry)
+        }
+        .configurationDisplayName("Countie 3")
+        .description("Third Countie on your list, open the app to edit.")
+        .supportedFamilies([.accessoryRectangular, .accessoryCircular, .accessoryInline])
+    }
+}
+
+struct CountieWidget4: Widget {
+    let kind: String = "CountieWidget4"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: Provider(widgetIdentifier: 4)) { entry in
+            CountieWidgetEntryView(entry: entry)
+        }
+        .configurationDisplayName("Countie 4")
+        .description("Fourth Countie on your list, open the app to edit.")
+        .supportedFamilies([.accessoryRectangular, .accessoryCircular, .accessoryInline])
+    }
+}
+
+struct CountieWidget5: Widget {
+    let kind: String = "CountieWidget5"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: Provider(widgetIdentifier: 5)) { entry in
+            CountieWidgetEntryView(entry: entry)
+        }
+        .configurationDisplayName("Countie 5")
+        .description("Fith Countie on your list, open the app to edit.")
+        .supportedFamilies([.accessoryRectangular, .accessoryCircular, .accessoryInline])
     }
 }
 
 struct CountieWidget_Previews: PreviewProvider {
     static var previews: some View {
-        CountieWidgetEntryView(entry: SimpleEntry(date: Date(), daysElapsed: 10, daysRemaining: -7, totalDays: 10, eventName: "FIFA Started ⚽️"))
-            .previewContext(WidgetPreviewContext(family: .accessoryRectangular))
-            .previewDisplayName("Rectangular")
+        Group {
+            // Preview for an upcoming event in 3 days
+            CountieWidgetEntryView(entry: SimpleEntry(date: Date(), eventName: "Christmas", configuration: EventConfiguration(daysElapsed: 1, daysRemaining: 3, totalDays: 3)))
+                .previewContext(WidgetPreviewContext(family: .accessoryRectangular))
+                .previewDisplayName("Upcoming Rectangular")
+            
+            // Preview for an upcoming event in 3 days
+            CountieWidgetEntryView(entry: SimpleEntry(date: Date(), eventName: "🎄 Christmas", configuration: EventConfiguration(daysElapsed: 1, daysRemaining: 3, totalDays: 3)))
+                .previewContext(WidgetPreviewContext(family: .accessoryCircular))
+                .previewDisplayName("Upcoming Circular")
+            
+            // Preview for an upcoming event in 3 days
+            CountieWidgetEntryView(entry: SimpleEntry(date: Date(), eventName: "Christmas 🎄", configuration: EventConfiguration(daysElapsed: 1, daysRemaining: 3, totalDays: 3)))
+                .previewContext(WidgetPreviewContext(family: .accessoryInline))
+                .previewDisplayName("Upcoming Line")
+            
+            // Preview for an event happening today
+            CountieWidgetEntryView(entry: SimpleEntry(date: Date(), eventName: "Christmas", configuration: EventConfiguration(daysElapsed: 1, daysRemaining: 0, totalDays: 1)))
+                .previewContext(WidgetPreviewContext(family: .accessoryRectangular))
+                .previewDisplayName("Today Rectangular")
+            
+            // Preview for an event happening today
+            CountieWidgetEntryView(entry: SimpleEntry(date: Date(), eventName: "🎄 Christmas", configuration: EventConfiguration(daysElapsed: 1, daysRemaining: 0, totalDays: 1)))
+                .previewContext(WidgetPreviewContext(family: .accessoryCircular))
+                .previewDisplayName("Today Circular")
+            
+            // Preview for an event happening today
+            CountieWidgetEntryView(entry: SimpleEntry(date: Date(), eventName: "Christmas 🎄", configuration: EventConfiguration(daysElapsed: 1, daysRemaining: 0, totalDays: 1)))
+                .previewContext(WidgetPreviewContext(family: .accessoryInline))
+                .previewDisplayName("Today Line")
+            
+            // Preview for a past event 2 days ago
+            CountieWidgetEntryView(entry: SimpleEntry(date: Date(), eventName: "Christmas", configuration: EventConfiguration(daysElapsed: 3, daysRemaining: -2, totalDays: 3)))
+                .previewContext(WidgetPreviewContext(family: .accessoryRectangular))
+                .previewDisplayName("Past Rectangular")
+            
+            // Preview for a past event 2 days ago
+            CountieWidgetEntryView(entry: SimpleEntry(date: Date(), eventName: "Christmas", configuration: EventConfiguration(daysElapsed: 3, daysRemaining: -2, totalDays: 3)))
+                .previewContext(WidgetPreviewContext(family: .accessoryCircular))
+                .previewDisplayName("Past Circular")
+            
+            // Preview for a past event 2 days ago
+            CountieWidgetEntryView(entry: SimpleEntry(date: Date(), eventName: "Christmas 🎄", configuration: EventConfiguration(daysElapsed: 3, daysRemaining: -2, totalDays: 3)))
+                .previewContext(WidgetPreviewContext(family: .accessoryInline))
+                .previewDisplayName("Past Line")
+            
+            // Preview for the not configured state
+            CountieWidgetEntryView(entry: SimpleEntry(date: Date(), eventName: "Not Configured", configuration: nil))
+                .previewContext(WidgetPreviewContext(family: .accessoryRectangular))
+                .previewDisplayName("Not Configured Rectangular")
+            
+            // Preview for the not configured state
+            CountieWidgetEntryView(entry: SimpleEntry(date: Date(), eventName: "Not Configured", configuration: nil))
+                .previewContext(WidgetPreviewContext(family: .accessoryCircular))
+                .previewDisplayName("Not Configured Circular")
+            
+            // Preview for the not configured state
+            CountieWidgetEntryView(entry: SimpleEntry(date: Date(), eventName: "Not Configured", configuration: nil))
+                .previewContext(WidgetPreviewContext(family: .accessoryInline))
+                .previewDisplayName("Not Configured Line")
+        }
     }
 }
 
