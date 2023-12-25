@@ -22,22 +22,36 @@ struct Provider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
-        let entry = createEntry()
+        let entry = createEntry(for: Date())
         completion(entry)
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
         var entries: [SimpleEntry] = []
         
-        let entry = createEntry()
-        let refreshDate = Calendar.current.date(byAdding: .minute, value: 30, to: entry.date)!
-        entries.append(entry)
-        
-        let timeline = Timeline(entries: entries, policy: .after(refreshDate))
+        // Calculate the start of the current day
+        let calendar = Calendar.current
+        let currentDate = Date()
+        let startOfCurrentDay = calendar.startOfDay(for: currentDate)
+
+        // Create entries for the next 7 days
+        for dayOffset in 0..<7 {
+            guard let entryDate = calendar.date(byAdding: .day, value: dayOffset, to: startOfCurrentDay) else {
+                continue
+            }
+
+            let entry = createEntry(for: entryDate)
+            entries.append(entry)
+        }
+
+        // Use the start of the next day as the refresh date for the last entry
+        let nextRefreshDate = calendar.date(byAdding: .day, value: 1, to: entries.last?.date ?? currentDate)!
+
+        let timeline = Timeline(entries: entries, policy: .after(nextRefreshDate))
         completion(timeline)
     }
     
-    private func createEntry() -> SimpleEntry {
+    private func createEntry(for date: Date) -> SimpleEntry {
         let eventKey = "EVENT_KEY_\(widgetIdentifier)"
         let eventDateKey = "EVDAY_KEY_\(widgetIdentifier)"
         let daySetKey = "DAYSET_KEY_\(widgetIdentifier)"
@@ -46,20 +60,18 @@ struct Provider: TimelineProvider {
               let eventName = userDefaults.string(forKey: eventKey),
               let eventDate = userDefaults.object(forKey: eventDateKey) as? Date,
               let setDate = userDefaults.object(forKey: daySetKey) as? Date else {
-            // Return an entry indicating that the widget is not configured.
-            return SimpleEntry(date: Date(), eventName: "not onboarded", configuration: nil)
+            return SimpleEntry(date: date, eventName: "not onboarded", configuration: nil)
         }
+
+        let startOfEventDate = Calendar.current.startOfDay(for: eventDate)
+        let startOfSetDate = Calendar.current.startOfDay(for: setDate)
+        let startOfCurrentDate = Calendar.current.startOfDay(for: date)
         
-        let currentDate = Date()
-        let startOfCurrentDate = Calendar.current.startOfDay(for: currentDate)
-        let eventDayStart = Calendar.current.startOfDay(for: eventDate)
-        let setDateStart = Calendar.current.startOfDay(for: setDate)
-        let totalDays = Calendar.current.dateComponents([.day], from: setDateStart, to: eventDayStart).day ?? 0
-        let daysElapsed = Calendar.current.dateComponents([.day], from: setDateStart, to: startOfCurrentDate).day ?? 0
+        let totalDays = Calendar.current.dateComponents([.day], from: startOfSetDate, to: startOfEventDate).day ?? 0
+        let daysElapsed = Calendar.current.dateComponents([.day], from: startOfSetDate, to: startOfCurrentDate).day ?? 0
 
         let configuration = EventConfiguration(daysElapsed: daysElapsed, daysRemaining: totalDays - daysElapsed, totalDays: totalDays)
-
-        return SimpleEntry(date: currentDate, eventName: eventName, configuration: configuration)
+        return SimpleEntry(date: startOfCurrentDate, eventName: eventName, configuration: configuration)
     }
 }
 
